@@ -75,10 +75,13 @@
         input.value = '';
 
         const normalizedUserInput = normalize(userInput);
-        lastUserQuestion = userInput;
 
-        // ✅ Cas : utilisateur écrit une réponse (tolère espace ou pas)
-        if ((normalizedUserInput.startsWith("réponse:") || normalizedUserInput.startsWith("réponse :")) && lastUserQuestion) {
+        // ✅ Cas : l'utilisateur fournit une réponse
+        const isResponse =
+          normalizedUserInput.startsWith("réponse:") ||
+          normalizedUserInput.startsWith("réponse :");
+
+        if (isResponse && lastUserQuestion) {
           const newAnswer = userInput.split(":").slice(1).join(":").trim();
           if (newAnswer) {
             saveNewKnowledge(lastUserQuestion, newAnswer);
@@ -89,7 +92,10 @@
           return;
         }
 
-        // 🔍 Recherche d’une réponse connue
+        // 🧠 Si ce n’est pas une réponse, on enregistre comme dernière question
+        lastUserQuestion = userInput;
+
+        // 🔍 Recherche dans la base
         const match = knowledgeBase.find(entry =>
           normalize(userInput).includes(normalize(entry.question))
         );
