@@ -47,7 +47,10 @@
     const input = document.getElementById('userInput');
     let knowledgeBase = [];
 
-    // 📥 Charger la base dynamique depuis Google Sheets
+    function normalize(text) {
+      return text.toLowerCase().replace(/[!?.,]/g, '').trim();
+    }
+
     async function loadKnowledgeBase() {
       try {
         const response = await fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec');
@@ -62,14 +65,16 @@
 
     input.addEventListener('keydown', function(event) {
       if (event.key === 'Enter') {
-        const userQuestion = input.value.trim().toLowerCase();
+        const userQuestion = input.value.trim();
         if (!userQuestion) return;
 
         addMessage('user', userQuestion);
         input.value = '';
 
+        const normalizedUserQ = normalize(userQuestion);
+
         const match = knowledgeBase.find(entry =>
-          userQuestion.includes(entry.question)
+          normalizedUserQ.includes(normalize(entry.question))
         );
 
         const answer = match
@@ -92,7 +97,6 @@
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
-    // 📤 Envoi des questions non reconnues vers Google Sheets
     function saveUnknownQuestion(question) {
       fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec', {
         method: 'POST',
@@ -100,7 +104,7 @@
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question })
       })
-      .then(() => console.log("Question envoyée à Sheets :", question))
+      .then(() => console.log("Question non reconnue enregistrée :", question))
       .catch(err => console.error("Erreur d’envoi :", err));
     }
   </script>
