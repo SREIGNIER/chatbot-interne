@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Chatbot Interne</title>
+  <script src="https://unpkg.com/tabletop@1.6.0/tabletop.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -110,7 +111,7 @@
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
-    // Envoi des questions non reconnues à Google Sheets
+    // Envoi des questions non reconnues (POST via Apps Script)
     function saveUnknownQuestion(question) {
       fetch('https://script.google.com/macros/s/AKfycbz3yVehJULY0g82dd8Id4--ic02IxrhRBonPk_xnTaE5jZ5WG1T4coR5-EPmkxMLi0-/exec', {
         method: 'POST',
@@ -124,21 +125,23 @@
       .catch(err => console.error("Erreur d’envoi :", err));
     }
 
-    // Récupération des questions non reconnues depuis Google Sheets
+    // Lecture directe depuis Google Sheets (Tabletop)
     function loadUnknownQuestions() {
-      fetch('https://script.google.com/macros/s/AKfycbz3yVehJULY0g82dd8Id4--ic02IxrhRBonPk_xnTaE5jZ5WG1T4coR5-EPmkxMLi0-/exec')
-        .then(response => response.json())
-        .then(data => {
+      Tabletop.init({
+        key: '1SR3AgYgM9SSgV_iRk3T27sudNwNSWkD_KKnzis8m3rA',
+        simpleSheet: true,
+        callback: function(data) {
           const list = document.getElementById('unknownList');
           list.innerHTML = '';
 
           data.forEach(entry => {
             const li = document.createElement('li');
-            li.textContent = `${entry.question} (le ${new Date(entry.date).toLocaleDateString()})`;
+            const date = entry.date ? new Date(entry.date).toLocaleDateString() : "(date inconnue)";
+            li.textContent = `${entry.question} (le ${date})`;
             list.appendChild(li);
           });
-        })
-        .catch(err => console.error("Erreur lors du chargement des questions :", err));
+        }
+      });
     }
   </script>
 </body>
