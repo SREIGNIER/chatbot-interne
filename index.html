@@ -54,8 +54,8 @@
 </head>
 <body>
 
-  <!-- ✅ Script tabletop placé ici (juste après <body>) -->
-  <script src="https://cdn.jsdelivr.net/npm/tabletop@1.6.0/tabletop.min.js"></script>
+  <!-- ✅ Tabletop chargé avec cache-busting -->
+  <script src="https://cdn.jsdelivr.net/npm/tabletop@1.6.0/tabletop.min.js?v=1"></script>
 
   <div id="chatbox">
     <div class="message bot">Bonjour ! Pose-moi une question sur les méthodologies internes.</div>
@@ -129,24 +129,26 @@
       .catch(err => console.error("Erreur d’envoi :", err));
     }
 
-    // Lecture directe depuis Google Sheets avec Tabletop.js
-    function loadUnknownQuestions() {
-      Tabletop.init({
-        key: '1SR3AgYgM9SSgV_iRk3T27sudNwNSWkD_KKnzis8m3rA',
-        simpleSheet: true,
-        callback: function(data) {
-          const list = document.getElementById('unknownList');
-          list.innerHTML = '';
+    // ✅ Initialisation après chargement complet
+    window.addEventListener('load', function () {
+      window.loadUnknownQuestions = function () {
+        Tabletop.init({
+          key: '1SR3AgYgM9SSgV_iRk3T27sudNwNSWkD_KKnzis8m3rA',
+          simpleSheet: true,
+          callback: function(data) {
+            const list = document.getElementById('unknownList');
+            list.innerHTML = '';
 
-          data.forEach(entry => {
-            const li = document.createElement('li');
-            const date = entry.date ? new Date(entry.date).toLocaleDateString() : "(date inconnue)";
-            li.textContent = `${entry.question} (le ${date})`;
-            list.appendChild(li);
-          });
-        }
-      });
-    }
+            data.forEach(entry => {
+              const li = document.createElement('li');
+              const date = entry.date ? new Date(entry.date).toLocaleDateString() : "(date inconnue)";
+              li.textContent = `${entry.question} (le ${date})`;
+              list.appendChild(li);
+            });
+          }
+        });
+      };
+    });
   </script>
 </body>
 </html>
