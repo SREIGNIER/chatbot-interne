@@ -34,6 +34,19 @@
       border: 1px solid #ccc;
       border-radius: 4px;
     }
+    #adminTools {
+      width: 100%;
+      max-width: 600px;
+      margin: 20px auto;
+      background: #e7f3ff;
+      border: 1px solid #bee0ff;
+      padding: 15px;
+      border-radius: 8px;
+    }
+    #adminTools button {
+      margin-right: 10px;
+      padding: 8px 12px;
+    }
   </style>
 </head>
 <body>
@@ -41,6 +54,14 @@
     <div class="message bot">Bonjour ! Pose-moi une question sur les méthodologies internes.</div>
   </div>
   <input type="text" id="userInput" placeholder="Tape ta question ici..." />
+
+  <!-- Espace admin -->
+  <div id="adminTools" style="display:none;">
+    <h3>🛠️ Outils Admin</h3>
+    <button onclick="exportCSV()">📥 Télécharger la base</button>
+    <button onclick="document.getElementById('fileInput').click()">📎 Ajouter un document</button>
+    <input type="file" id="fileInput" style="display:none;" />
+  </div>
 
   <script>
     const chatbox = document.getElementById('chatbox');
@@ -53,6 +74,10 @@
 
     const API_URL = 'https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec';
 
+    if (isAdmin) {
+      document.getElementById('adminTools').style.display = 'block';
+    }
+
     function normalize(text) {
       return text.toLowerCase().replace(/[!?.,]/g, '').trim();
     }
@@ -63,7 +88,7 @@
         knowledgeBase = await response.json();
         console.log("Base de connaissance chargée :", knowledgeBase);
       } catch (err) {
-        console.error("Erreur lors du chargement de la base de connaissance :", err);
+        console.error("Erreur lors du chargement :", err);
       }
     }
 
@@ -82,7 +107,7 @@
           normalizedUserInput.startsWith("réponse:") ||
           normalizedUserInput.startsWith("réponse :");
 
-        // Si c’est une réponse et utilisateur est admin
+        // Cas réponse
         if (isResponse && lastUserQuestion && isAdmin) {
           const newAnswer = userInput.split(":").slice(1).join(":").trim();
           if (newAnswer) {
@@ -94,13 +119,11 @@
           return;
         }
 
-        // Si c’est une réponse mais pas admin
         if (isResponse && !isAdmin) {
           addMessage('bot', "Tu n’as pas les droits pour m’entraîner. Contacte l’administrateur.");
           return;
         }
 
-        // Sinon : c’est une nouvelle question
         lastUserQuestion = userInput;
 
         const match = knowledgeBase.find(entry =>
@@ -130,9 +153,8 @@
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question })
-      })
-      .then(() => console.log("Question non reconnue enregistrée :", question))
-      .catch(err => console.error("Erreur d’envoi :", err));
+      }).then(() => console.log("Question enregistrée :", question))
+        .catch(err => console.error("Erreur :", err));
     }
 
     function saveNewKnowledge(question, answer) {
@@ -141,12 +163,22 @@
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ question: question, answer: answer })
-      })
-      .then(() => {
-        console.log("Nouvelle connaissance ajoutée :", question, answer);
+      }).then(() => {
         knowledgeBase.push({ question: normalize(question), answer: answer });
-      })
-      .catch(err => console.error("Erreur d’envoi de la réponse :", err));
+      }).catch(err => console.error("Erreur ajout réponse :", err));
+    }
+
+    function exportCSV() {
+      const csvContent = "data:text/csv;charset=utf-8,"
+        + knowledgeBase.map(e => `"${e.question}","${e.answer}"`).join("\n");
+
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "base_connaissances.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
     }
   </script>
 </body>
