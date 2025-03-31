@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chatbot Interne</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    #chatbox {
+      width: 100%;
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    .message {
+      margin-bottom: 10px;
+    }
+    .user {
+      font-weight: bold;
+    }
+    .bot {
+      color: #333;
+    }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    #adminPanel {
+      width: 100%;
+      max-width: 600px;
+      margin: 30px auto 0;
+      background: #fff3cd;
+      border: 1px solid #ffeeba;
+      padding: 20px;
+      border-radius: 8px;
+    }
+    #adminPanel h3 {
+      margin-top: 0;
+    }
+    #unknownList li {
+      margin-bottom: 15px;
+    }
+  </style>
+</head>
+<body>
+  <div id="chatbox">
+    <div class="message bot">Bonjour ! Pose-moi une question sur les méthodologies internes.</div>
+  </div>
+  <input type="text" id="userInput" placeholder="Tape ta question ici..." />
+
+  <div id="adminPanel">
+    <h3>📋 Questions non reconnues</h3>
+    <button onclick="loadUnknownQuestions()">🔄 Rafraîchir</button>
+    <ul id="unknownList"></ul>
+  </div>
+
+  <script>
+    const knowledgeBase = [
+      {
+        keywords: ["ticket", "créer", "ouvrir", "faire"],
+        answer: "Pour créer un ticket, rends-toi sur l'outil interne X, clique sur 'Nouveau ticket' et remplis les champs requis."
+      },
+      {
+        keywords: ["drive", "accès", "accéder"],
+        answer: "Le drive est accessible via le lien interne drive.entreprise.fr. Utilise ton identifiant pro."
+      }
+    ];
+
+    const chatbox = document.getElementById('chatbox');
+    const input = document.getElementById('userInput');
+
+    input.addEventListener('keydown', function(event) {
+      if (event.key === 'Enter') {
+        const question = input.value.trim().toLowerCase();
+        if (!question) return;
+
+        addMessage('user', question);
+        input.value = '';
+
+        const matchedEntry = knowledgeBase.find(entry =>
+          entry.keywords.some(keyword => question.includes(keyword))
+        );
+
+        const answer = matchedEntry
+          ? matchedEntry.answer
+          : "Je ne connais pas encore la réponse à cette question. Veux-tu me la transmettre pour que je m'améliore ?";
+        
+        addMessage('bot', answer);
+
+        if (!matchedEntry) {
+          saveUnknownQuestion(question);
+        }
+      }
+    });
+
+    function addMessage(sender, text) {
+      const message = document.createElement('div');
+      message.classList.add('message', sender);
+      message.innerText = (sender === 'user' ? 'Vous: ' : 'Bot: ') + text;
+      chatbox.appendChild(message);
+      chatbox.scrollTop = chatbox.scrollHeight;
+    }
+
+    // Envoi des questions non reconnues à Google Sheets
+    function saveUnknownQuestion(question) {
+      fetch('https://script.google.com/macros/s/AKfycbyBLuO62OVXxJn4XrU0ae6eE6Pegu_MiWKPat1k49aiIbkNn8RHWBvHUCNRxOf9kcD2/exec', {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ question: question })
+      })
+      .then(() => console.log("Question envoyée à Google Sheets :", question))
+      .catch(err => console.error("Erreur d’envoi :", err));
+    }
+
+    // Récupération des questions non reconnues depuis Google Sheets
+    function loadUnknownQuestions() {
+      fetch('https://script.google.com/macros/s/AKfycbyBLuO62OVXxJn4XrU0ae6eE6Pegu_MiWKPat1k49aiIbkNn8RHWBvHUCNRxOf9kcD2/exec')
+        .then(response => response.json())
+        .then(data => {
+          const list = document.getElementById('unknownList');
+          list.innerHTML = '';
+
+          data.forEach(entry => {
+            const li = document.createElement('li');
+            li.textContent = `${entry.question} (le ${new Date(entry.date).toLocaleDateString()})`;
+            list.appendChild(li);
+          });
+        })
+        .catch(err => console.error("Erreur lors du chargement des questions :", err));
+    }
+  </script>
+</body>
+</html>
