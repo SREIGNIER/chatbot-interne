@@ -75,10 +75,11 @@
         input.value = '';
 
         const normalizedUserInput = normalize(userInput);
+        lastUserQuestion = userInput;
 
-        // ✅ Cas : l'utilisateur fournit une réponse manuelle
-        if (normalizedUserInput.startsWith("réponse:") && lastUserQuestion) {
-          const newAnswer = userInput.substring(8).trim();
+        // ✅ Cas : utilisateur écrit une réponse (tolère espace ou pas)
+        if ((normalizedUserInput.startsWith("réponse:") || normalizedUserInput.startsWith("réponse :")) && lastUserQuestion) {
+          const newAnswer = userInput.split(":").slice(1).join(":").trim();
           if (newAnswer) {
             saveNewKnowledge(lastUserQuestion, newAnswer);
             addMessage('bot', "Merci ! Réponse enregistrée. Je m'en souviendrai.");
@@ -88,9 +89,7 @@
           return;
         }
 
-        lastUserQuestion = userInput; // 🧠 Toujours enregistrer la dernière question posée
-
-        // 🔍 Recherche d'une réponse existante
+        // 🔍 Recherche d’une réponse connue
         const match = knowledgeBase.find(entry =>
           normalize(userInput).includes(normalize(entry.question))
         );
