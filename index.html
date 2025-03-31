@@ -46,6 +46,9 @@
     const chatbox = document.getElementById('chatbox');
     const input = document.getElementById('userInput');
     let knowledgeBase = [];
+    let lastUnknownQuestion = null;
+
+    const API_URL = 'https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec';
 
     function normalize(text) {
       return text.toLowerCase().replace(/[!?.,]/g, '').trim();
@@ -53,7 +56,7 @@
 
     async function loadKnowledgeBase() {
       try {
-        const response = await fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec');
+        const response = await fetch(API_URL);
         knowledgeBase = await response.json();
         console.log("Base de connaissance chargée :", knowledgeBase);
       } catch (err) {
@@ -65,26 +68,38 @@
 
     input.addEventListener('keydown', function(event) {
       if (event.key === 'Enter') {
-        const userQuestion = input.value.trim();
-        if (!userQuestion) return;
+        const userInput = input.value.trim();
+        if (!userInput) return;
 
-        addMessage('user', userQuestion);
+        addMessage('user', userInput);
         input.value = '';
 
-        const normalizedUserQ = normalize(userQuestion);
+        const normalizedUserInput = normalize(userInput);
 
+        // 👨‍🏫 Cas : l'utilisateur apporte une réponse
+        if (normalizedUserInput.startsWith("réponse:") && lastUnknownQuestion) {
+          const newAnswer = userInput.substring(8).trim();
+          if (newAnswer) {
+            saveNewKnowledge(lastUnknownQuestion, newAnswer);
+            addMessage('bot', "Merci ! Réponse enregistrée. Je m'en souviendrai.");
+            lastUnknownQuestion = null;
+          } else {
+            addMessage('bot', "Ta réponse semble vide. Réessaie avec : Réponse: ...");
+          }
+          return;
+        }
+
+        // 🔍 Recherche dans la base
         const match = knowledgeBase.find(entry =>
-          normalizedUserQ.includes(normalize(entry.question))
+          normalizedUserInput.includes(normalize(entry.question))
         );
 
-        const answer = match
-          ? match.answer
-          : "Je ne connais pas encore la réponse à cette question. Veux-tu me la transmettre pour que je m'améliore ?";
-
-        addMessage('bot', answer);
-
-        if (!match) {
-          saveUnknownQuestion(userQuestion);
+        if (match) {
+          addMessage('bot', match.answer);
+        } else {
+          addMessage('bot', "Je ne connais pas encore la réponse à cette question. Si tu la connais, écris-la comme ceci : Réponse: [ta réponse]");
+          lastUnknownQuestion = userInput;
+          saveUnknownQuestion(userInput);
         }
       }
     });
@@ -98,7 +113,7 @@
     }
 
     function saveUnknownQuestion(question) {
-      fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec', {
+      fetch(API_URL, {
         method: 'POST',
         mode: 'no-cors',
         headers: { 'Content-Type': 'application/json' },
@@ -106,6 +121,20 @@
       })
       .then(() => console.log("Question non reconnue enregistrée :", question))
       .catch(err => console.error("Erreur d’envoi :", err));
+    }
+
+    function saveNewKnowledge(question, answer) {
+      fetch(API_URL, {
+        method: 'POST',
+        mode: 'no-cors',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: question, answer: answer })
+      })
+      .then(() => {
+        console.log("Nouvelle connaissance ajoutée :", question, answer);
+        knowledgeBase.push({ question: normalize(question), answer: answer });
+      })
+      .catch(err => console.error("Erreur d’envoi de la réponse :", err));
     }
   </script>
 </body>
