@@ -45,6 +45,9 @@
   <script>
     const chatbox = document.getElementById('chatbox');
     const input = document.getElementById('userInput');
+    const urlParams = new URLSearchParams(window.location.search);
+    const isAdmin = urlParams.get('admin') === 'true';
+
     let knowledgeBase = [];
     let lastUserQuestion = null;
 
@@ -75,13 +78,12 @@
         input.value = '';
 
         const normalizedUserInput = normalize(userInput);
-
-        // ✅ Cas : l'utilisateur fournit une réponse
         const isResponse =
           normalizedUserInput.startsWith("réponse:") ||
           normalizedUserInput.startsWith("réponse :");
 
-        if (isResponse && lastUserQuestion) {
+        // Si c’est une réponse et utilisateur est admin
+        if (isResponse && lastUserQuestion && isAdmin) {
           const newAnswer = userInput.split(":").slice(1).join(":").trim();
           if (newAnswer) {
             saveNewKnowledge(lastUserQuestion, newAnswer);
@@ -92,10 +94,15 @@
           return;
         }
 
-        // 🧠 Si ce n’est pas une réponse, on enregistre comme dernière question
+        // Si c’est une réponse mais pas admin
+        if (isResponse && !isAdmin) {
+          addMessage('bot', "Tu n’as pas les droits pour m’entraîner. Contacte l’administrateur.");
+          return;
+        }
+
+        // Sinon : c’est une nouvelle question
         lastUserQuestion = userInput;
 
-        // 🔍 Recherche dans la base
         const match = knowledgeBase.find(entry =>
           normalize(userInput).includes(normalize(entry.question))
         );
