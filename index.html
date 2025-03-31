@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Chatbot Interne</title>
+  <title>Chatbot Interne (Admin)</title>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -35,109 +35,36 @@
       border-radius: 4px;
     }
     #adminTools {
-      width: 100%;
-      max-width: 600px;
-      margin: 20px auto;
-      background: #e7f3ff;
-      border: 1px solid #bee0ff;
+      margin-top: 30px;
+      background: #e8f4fc;
       padding: 15px;
-      border-radius: 8px;
-    }
-    #adminTools button {
-      margin-right: 10px;
-      padding: 8px 12px;
+      border-radius: 6px;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
     }
   </style>
 </head>
 <body>
   <div id="chatbox">
-    <div class="message bot">Bonjour ! Pose-moi une question sur les méthodologies internes.</div>
+    <div class="message bot">Bonjour Admin ! Pose-moi une question ou envoie-moi un document à intégrer.</div>
   </div>
-  <input type="text" id="userInput" placeholder="Tape ta question ici..." />
+  <input type="text" id="userInput" placeholder="Tape une question ou 'Réponse:' pour m'entraîner..." />
 
-  <!-- Espace admin -->
-  <div id="adminTools" style="display:none;">
-    <h3>🛠️ Outils Admin</h3>
-    <button onclick="exportCSV()">📥 Télécharger la base</button>
-    <button onclick="document.getElementById('fileInput').click()">📎 Ajouter un document</button>
-    <input type="file" id="fileInput" style="display:none;" />
+  <div id="adminTools">
+    <h3>📎 Ajouter un document (PDF/DOCX)</h3>
+    <input type="file" id="fileInput" accept=".pdf,.doc,.docx" onchange="handleFileUpload(event)" />
   </div>
 
   <script>
     const chatbox = document.getElementById('chatbox');
     const input = document.getElementById('userInput');
-    const urlParams = new URLSearchParams(window.location.search);
-    const isAdmin = urlParams.get('admin') === 'true';
-
-    let knowledgeBase = [];
     let lastUserQuestion = null;
-
     const API_URL = 'https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec';
-
-    if (isAdmin) {
-      document.getElementById('adminTools').style.display = 'block';
-    }
 
     function normalize(text) {
       return text.toLowerCase().replace(/[!?.,]/g, '').trim();
     }
-
-    async function loadKnowledgeBase() {
-      try {
-        const response = await fetch(API_URL);
-        knowledgeBase = await response.json();
-        console.log("Base de connaissance chargée :", knowledgeBase);
-      } catch (err) {
-        console.error("Erreur lors du chargement :", err);
-      }
-    }
-
-    loadKnowledgeBase();
-
-    input.addEventListener('keydown', function(event) {
-      if (event.key === 'Enter') {
-        const userInput = input.value.trim();
-        if (!userInput) return;
-
-        addMessage('user', userInput);
-        input.value = '';
-
-        const normalizedUserInput = normalize(userInput);
-        const isResponse =
-          normalizedUserInput.startsWith("réponse:") ||
-          normalizedUserInput.startsWith("réponse :");
-
-        // Cas réponse
-        if (isResponse && lastUserQuestion && isAdmin) {
-          const newAnswer = userInput.split(":").slice(1).join(":").trim();
-          if (newAnswer) {
-            saveNewKnowledge(lastUserQuestion, newAnswer);
-            addMessage('bot', "Merci ! Réponse enregistrée. Je m'en souviendrai.");
-          } else {
-            addMessage('bot', "Ta réponse semble vide. Réessaie avec : Réponse: ...");
-          }
-          return;
-        }
-
-        if (isResponse && !isAdmin) {
-          addMessage('bot', "Tu n’as pas les droits pour m’entraîner. Contacte l’administrateur.");
-          return;
-        }
-
-        lastUserQuestion = userInput;
-
-        const match = knowledgeBase.find(entry =>
-          normalize(userInput).includes(normalize(entry.question))
-        );
-
-        if (match) {
-          addMessage('bot', match.answer);
-        } else {
-          addMessage('bot', "Je ne peux répondre qu'aux questions sur lesquelles SRE m'a entraîné :( désolé !");
-          saveUnknownQuestion(userInput);
-        }
-      }
-    });
 
     function addMessage(sender, text) {
       const message = document.createElement('div');
@@ -147,38 +74,28 @@
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
-    function saveUnknownQuestion(question) {
-      fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question })
-      }).then(() => console.log("Question enregistrée :", question))
-        .catch(err => console.error("Erreur :", err));
-    }
+    function handleFileUpload(event) {
+      const file = event.target.files[0];
+      if (!file) return;
 
-    function saveNewKnowledge(question, answer) {
-      fetch(API_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: question, answer: answer })
-      }).then(() => {
-        knowledgeBase.push({ question: normalize(question), answer: answer });
-      }).catch(err => console.error("Erreur ajout réponse :", err));
-    }
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const base64Data = e.target.result.split(',')[1];
 
-    function exportCSV() {
-      const csvContent = "data:text/csv;charset=utf-8,"
-        + knowledgeBase.map(e => `"${e.question}","${e.answer}"`).join("\n");
-
-      const encodedUri = encodeURI(csvContent);
-      const link = document.createElement("a");
-      link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "base_connaissances.csv");
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+        fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uploadPDF: true,
+            fileName: file.name,
+            fileType: file.type,
+            fileData: base64Data
+          })
+        })
+        .then(() => addMessage('bot', `📄 Document "${file.name}" reçu et en cours d'intégration.`))
+        .catch(() => addMessage('bot', `❌ Erreur d'envoi du document.`));
+      };
+      reader.readAsDataURL(file);
     }
   </script>
 </body>
