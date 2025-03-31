@@ -112,7 +112,7 @@
 
     // Envoi des questions non reconnues à Google Sheets
     function saveUnknownQuestion(question) {
-      fetch('https://script.google.com/macros/s/AKfycbyBLuO62OVXxJn4XrU0ae6eE6Pegu_MiWKPat1k49aiIbkNn8RHWBvHUCNRxOf9kcD2/exec', {
+      fetch('https://script.google.com/macros/s/AKfycbz3yVehJULY0g82dd8Id4--ic02IxrhRBonPk_xnTaE5jZ5WG1T4coR5-EPmkxMLi0-/exec', {
         method: 'POST',
         mode: 'no-cors',
         headers: {
@@ -126,7 +126,7 @@
 
     // Récupération des questions non reconnues depuis Google Sheets
     function loadUnknownQuestions() {
-      fetch('https://script.google.com/macros/s/AKfycbyBLuO62OVXxJn4XrU0ae6eE6Pegu_MiWKPat1k49aiIbkNn8RHWBvHUCNRxOf9kcD2/exec')
+      fetch('https://script.google.com/macros/s/AKfycbz3yVehJULY0g82dd8Id4--ic02IxrhRBonPk_xnTaE5jZ5WG1T4coR5-EPmkxMLi0-/exec')
         .then(response => response.json())
         .then(data => {
           const list = document.getElementById('unknownList');
