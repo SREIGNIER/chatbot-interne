@@ -46,7 +46,7 @@
     const chatbox = document.getElementById('chatbox');
     const input = document.getElementById('userInput');
     let knowledgeBase = [];
-    let lastUnknownQuestion = null;
+    let lastUserQuestion = null;
 
     const API_URL = 'https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec';
 
@@ -76,29 +76,29 @@
 
         const normalizedUserInput = normalize(userInput);
 
-        // 👨‍🏫 Cas : l'utilisateur apporte une réponse
-        if (normalizedUserInput.startsWith("réponse:") && lastUnknownQuestion) {
+        // ✅ Cas : l'utilisateur fournit une réponse manuelle
+        if (normalizedUserInput.startsWith("réponse:") && lastUserQuestion) {
           const newAnswer = userInput.substring(8).trim();
           if (newAnswer) {
-            saveNewKnowledge(lastUnknownQuestion, newAnswer);
+            saveNewKnowledge(lastUserQuestion, newAnswer);
             addMessage('bot', "Merci ! Réponse enregistrée. Je m'en souviendrai.");
-            lastUnknownQuestion = null;
           } else {
             addMessage('bot', "Ta réponse semble vide. Réessaie avec : Réponse: ...");
           }
           return;
         }
 
-        // 🔍 Recherche dans la base
+        lastUserQuestion = userInput; // 🧠 Toujours enregistrer la dernière question posée
+
+        // 🔍 Recherche d'une réponse existante
         const match = knowledgeBase.find(entry =>
-          normalizedUserInput.includes(normalize(entry.question))
+          normalize(userInput).includes(normalize(entry.question))
         );
 
         if (match) {
           addMessage('bot', match.answer);
         } else {
           addMessage('bot', "Je ne connais pas encore la réponse à cette question. Si tu la connais, écris-la comme ceci : Réponse: [ta réponse]");
-          lastUnknownQuestion = userInput;
           saveUnknownQuestion(userInput);
         }
       }
