@@ -110,7 +110,7 @@
         if (match) {
           addMessage('bot', match.answer);
         } else {
-          addMessage('bot', "Je ne connais pas encore la réponse à cette question. Si tu la connais, écris-la comme ceci : Réponse: [ta réponse]");
+          addMessage('bot', "Je ne peux répondre qu'aux questions sur lesquelles SRE m'a entraîné :( désolé !");
           saveUnknownQuestion(userInput);
         }
       }
