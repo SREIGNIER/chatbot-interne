@@ -2,46 +2,59 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Chatbot Interne (Admin)</title>
+  <title>Admin Chatbot</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      background: #f5f5f5;
+      background: #1c1c1c;
+      color: white;
+      font-family: Arial;
       padding: 20px;
     }
     #chatbox {
-      width: 100%;
-      max-width: 600px;
+      max-width: 800px;
       margin: auto;
-      background: white;
-      border: 1px solid #ccc;
       padding: 20px;
+      background: #111;
+      border: 1px solid #444;
       border-radius: 8px;
     }
     .message {
       margin-bottom: 10px;
     }
-    .user {
-      font-weight: bold;
+    .user { font-weight: bold; }
+    .bot { color: #ddd; }
+
+    #userInputWrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-top: 20px;
     }
-    .bot {
-      color: #333;
-    }
-    input[type="text"] {
-      width: 100%;
+
+    #userInput {
+      flex: 1;
       padding: 10px;
-      margin-top: 10px;
+      border-radius: 5px;
       border: 1px solid #ccc;
-      border-radius: 4px;
+      background: #111;
+      color: white;
+      font-size: 16px;
     }
-    #adminTools {
-      margin-top: 30px;
-      background: #e8f4fc;
-      padding: 15px;
-      border-radius: 6px;
-      max-width: 600px;
-      margin-left: auto;
-      margin-right: auto;
+
+    #fileUpload {
+      display: none;
+    }
+
+    #fileLabel {
+      margin-left: 10px;
+      cursor: pointer;
+      font-size: 22px;
+    }
+
+    #uploadStatus {
+      text-align: center;
+      margin-top: 10px;
+      font-weight: bold;
     }
   </style>
 </head>
@@ -49,54 +62,100 @@
   <div id="chatbox">
     <div class="message bot">Bonjour Admin ! Pose-moi une question ou envoie-moi un document à intégrer.</div>
   </div>
-  <input type="text" id="userInput" placeholder="Tape une question ou 'Réponse:' pour m'entraîner..." />
 
-  <div id="adminTools">
-    <h3>📎 Ajouter un document (PDF/DOCX)</h3>
-    <input type="file" id="fileInput" accept=".pdf,.doc,.docx" onchange="handleFileUpload(event)" />
+  <div id="userInputWrapper">
+    <input type="text" id="userInput" placeholder="Tape une question ou 'Réponse:' pour m'entraîner..." />
+    <label for="fileUpload" id="fileLabel" title="Ajouter un document (PDF/DOCX)">📎</label>
+    <input type="file" id="fileUpload" accept=".pdf,.docx" />
   </div>
+
+  <div id="uploadStatus"></div>
 
   <script>
     const chatbox = document.getElementById('chatbox');
     const input = document.getElementById('userInput');
-    let lastUserQuestion = null;
-    const API_URL = 'https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec';
+    const fileUpload = document.getElementById('fileUpload');
+    const statusDiv = document.getElementById('uploadStatus');
 
-    function normalize(text) {
-      return text.toLowerCase().replace(/[!?.,]/g, '').trim();
-    }
+    const knowledgeBase = [
+      {
+        keywords: ["annuler", "annulation", "règlement", "reglement", "reglemet", "méthodologie d'annulation", "annuler un règlement", "erreur paiement", "supprimer règlement"],
+        answer: `Voici la méthodologie pour annuler un règlement si erreur (le jour même) :\n
+1. Rendez-vous sur la vue 360 de la fiche client, cliquez sur "Fiche personne"\n
+2. Dans le bandeau de gauche, allez dans "Raccourcis" > "Compte client"\n
+3. Cliquez sur "Historique" (pensez à bien saisir la société !)\n
+4. Sélectionnez la ligne du règlement à annuler (seulement possible si la date est du jour ou J+1)\n
+5. Cliquez sur "Annuler un règlement" > Vérifiez les détails > Cliquez sur "Valider"\n
+✅ Attention : les opérations ne peuvent être annulées que le jour même ou le lendemain.\n
+📸 Des captures d’écran sont disponibles dans le document pour t’aider visuellement.`
+      }
+    ];
 
     function addMessage(sender, text) {
-      const message = document.createElement('div');
-      message.classList.add('message', sender);
-      message.innerText = (sender === 'user' ? 'Vous: ' : 'Bot: ') + text;
-      chatbox.appendChild(message);
+      const msg = document.createElement('div');
+      msg.className = `message ${sender}`;
+      msg.innerText = `${sender === 'user' ? 'Vous' : 'Bot'}: ${text}`;
+      chatbox.appendChild(msg);
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
-    function handleFileUpload(event) {
-      const file = event.target.files[0];
+    input.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') {
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        addMessage('user', text);
+
+        if (text.toLowerCase().startsWith("réponse:")) {
+          const lastQuestion = chatbox.querySelectorAll('.user:last-of-type');
+          fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec', {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({
+              question: lastQuestion?.innerText.replace("Vous: ", "") || "Inconnue",
+              answer: text.replace("réponse:", "").trim()
+            })
+          });
+          addMessage('bot', "Merci ! Réponse enregistrée. Je m'en souviendrai.");
+        } else {
+          const match = knowledgeBase.find(kb =>
+            kb.keywords.some(k => text.toLowerCase().includes(k))
+          );
+          if (match) {
+            addMessage('bot', match.answer);
+          } else {
+            addMessage('bot', "Je ne connais pas encore la réponse à cette question. Si tu la connais, écris-la comme ceci : Réponse: [ta réponse]");
+          }
+        }
+      }
+    });
+
+    fileUpload.addEventListener('change', async function () {
+      const file = this.files[0];
       if (!file) return;
 
       const reader = new FileReader();
-      reader.onload = function(e) {
-        const base64Data = e.target.result.split(',')[1];
-
-        fetch(API_URL, {
+      reader.onload = function (e) {
+        const base64 = e.target.result.split(',')[1];
+        fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec', {
           method: 'POST',
+          mode: 'no-cors',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             uploadPDF: true,
             fileName: file.name,
             fileType: file.type,
-            fileData: base64Data
+            fileData: base64
           })
-        })
-        .then(() => addMessage('bot', `📄 Document "${file.name}" reçu et en cours d'intégration.`))
-        .catch(() => addMessage('bot', `❌ Erreur d'envoi du document.`));
+        }).then(() => {
+          addMessage('bot', "✅ Fichier envoyé avec succès.");
+          statusDiv.innerText = "";
+        }).catch(() => {
+          addMessage('bot', "❌ Erreur d'envoi du document.");
+        });
       };
       reader.readAsDataURL(file);
-    }
+    });
   </script>
 </body>
 </html>
