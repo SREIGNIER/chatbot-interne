@@ -153,14 +153,30 @@
           const row = data.reverse().find(entry =>
             question.toLowerCase().includes(entry.question.toLowerCase())
           );
+
+          let answer, images = [];
+
           if (row) {
-            const images = row.image_urls
+            answer = row.answer;
+            images = row.image_urls
               ? row.image_urls.split("||").map(url => url.trim())
               : [];
-            addMessage('bot', row.answer, images);
+            addMessage('bot', answer, images);
           } else {
-            addMessage('bot', "Je ne peux répondre qu'aux questions sur lesquelles SRE m'a entraîné :( désolé !");
+            answer = "Je ne peux répondre qu'aux questions sur lesquelles SRE m'a entraîné :( désolé !";
+            addMessage('bot', answer);
           }
+
+          // 🔁 Enregistre dans Google Sheets
+          fetch(API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              question: question,
+              answer: answer,
+              images: images.join(" || ")
+            })
+          });
         });
     }
 
