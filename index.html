@@ -1,34 +1,53 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Chatbot interne</title>
+  <meta charset="UTF-8">
+  <title>Chatbot Interne (Admin)</title>
   <style>
     body {
-      font-family: Arial;
-      background: #f9f9f9;
+      font-family: Arial, sans-serif;
+      background: #f2f2f2;
       padding: 20px;
     }
     #chatbox {
-      background: #fff;
+      background: white;
       border: 1px solid #ccc;
+      padding: 20px;
       max-width: 800px;
       margin: auto;
-      padding: 20px;
       border-radius: 8px;
     }
     .message {
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
     .user { font-weight: bold; }
-    .bot { color: #333; }
+    .bot { color: #444; }
 
-    input[type="text"] {
-      width: 100%;
-      padding: 10px;
+    #chatInputArea {
+      display: flex;
+      align-items: center;
       margin-top: 20px;
-      border: 1px solid #ccc;
+      gap: 10px;
+      max-width: 800px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    #userInput {
+      flex: 1;
+      padding: 10px;
       border-radius: 5px;
+      border: 1px solid #ccc;
+      font-size: 16px;
+    }
+
+    #fileUpload {
+      display: none;
+    }
+
+    #fileLabel {
+      font-size: 24px;
+      cursor: pointer;
     }
 
     .preview-images {
@@ -40,9 +59,9 @@
 
     .preview-images img {
       max-height: 100px;
-      cursor: pointer;
-      border: 1px solid #ccc;
       border-radius: 4px;
+      border: 1px solid #ccc;
+      cursor: pointer;
     }
 
     #imageModal {
@@ -50,8 +69,9 @@
       position: fixed;
       z-index: 9999;
       top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.8);
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.85);
       align-items: center;
       justify-content: center;
     }
@@ -59,6 +79,7 @@
     #imageModal img {
       max-width: 90%;
       max-height: 90%;
+      border: 4px solid white;
     }
 
     #closeModal {
@@ -72,37 +93,44 @@
   </style>
 </head>
 <body>
-  <div id="chatbox">
-    <div class="message bot">Bonjour ! Pose ta question ou envoie-moi un document méthodo.</div>
-  </div>
-  <input type="text" id="userInput" placeholder="Tape ta question..." />
 
-  <!-- Agrandissement image -->
+  <div id="chatbox">
+    <div class="message bot">Bonjour Admin 👋 Pose une question ou envoie-moi un document méthodo !</div>
+  </div>
+
+  <div id="chatInputArea">
+    <input type="text" id="userInput" placeholder="Tape ta question ici..." />
+    <label for="fileUpload" id="fileLabel" title="Ajouter un document">📎</label>
+    <input type="file" id="fileUpload" accept=".pdf,.docx" />
+  </div>
+
   <div id="imageModal" onclick="closeImage()">
     <span id="closeModal" onclick="closeImage()">✖</span>
-    <img id="modalImg" src="" alt="Image PDF">
+    <img id="modalImg" src="" alt="Zoom image">
   </div>
 
   <script>
     const chatbox = document.getElementById('chatbox');
     const input = document.getElementById('userInput');
+    const fileUpload = document.getElementById('fileUpload');
+    const API_URL = "https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec";
 
-    function addMessage(sender, text, images=[]) {
+    function addMessage(sender, text, images = []) {
       const msg = document.createElement('div');
       msg.className = `message ${sender}`;
       msg.innerText = `${sender === 'user' ? 'Vous' : 'Bot'}: ${text}`;
       chatbox.appendChild(msg);
 
       if (images.length > 0) {
-        const imgWrapper = document.createElement('div');
-        imgWrapper.className = 'preview-images';
+        const container = document.createElement('div');
+        container.className = 'preview-images';
         images.forEach(url => {
           const img = document.createElement('img');
           img.src = url;
           img.onclick = () => showImage(url);
-          imgWrapper.appendChild(img);
+          container.appendChild(img);
         });
-        chatbox.appendChild(imgWrapper);
+        chatbox.appendChild(container);
       }
 
       chatbox.scrollTop = chatbox.scrollHeight;
@@ -119,8 +147,7 @@
     });
 
     function fetchAnswer(question) {
-      // Appelle ton Google Sheet via Apps Script
-      fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec')
+      fetch(API_URL)
         .then(r => r.json())
         .then(data => {
           const row = data.reverse().find(entry =>
@@ -128,20 +155,42 @@
           );
           if (row) {
             const images = row.image_urls
-              ? row.image_urls.split("||").map(u => u.trim())
+              ? row.image_urls.split("||").map(url => url.trim())
               : [];
             addMessage('bot', row.answer, images);
           } else {
-            addMessage('bot', "Je ne connais pas encore la réponse à cette question.");
+            addMessage('bot', "Je ne peux répondre qu'aux questions sur lesquelles SRE m'a entraîné :( désolé !");
           }
         });
     }
 
+    fileUpload.addEventListener('change', function () {
+      const file = this.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        const base64 = e.target.result.split(',')[1];
+        fetch(API_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            uploadPDF: true,
+            fileName: file.name,
+            fileType: file.type,
+            fileData: base64
+          })
+        })
+        .then(() => addMessage('bot', `📄 Document "${file.name}" bien reçu. Je m'en occupe !`))
+        .catch(() => addMessage('bot', `❌ Erreur lors de l'envoi du fichier.`));
+      };
+      reader.readAsDataURL(file);
+    });
+
     function showImage(url) {
-      const modal = document.getElementById('imageModal');
-      const img = document.getElementById('modalImg');
-      img.src = url;
-      modal.style.display = 'flex';
+      document.getElementById('modalImg').src = url;
+      document.getElementById('imageModal').style.display = 'flex';
     }
 
     function closeImage() {
