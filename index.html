@@ -2,160 +2,151 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Admin Chatbot</title>
+  <title>Chatbot interne</title>
   <style>
     body {
-      background: #1c1c1c;
-      color: white;
       font-family: Arial;
+      background: #f9f9f9;
       padding: 20px;
     }
     #chatbox {
+      background: #fff;
+      border: 1px solid #ccc;
       max-width: 800px;
       margin: auto;
       padding: 20px;
-      background: #111;
-      border: 1px solid #444;
       border-radius: 8px;
     }
     .message {
-      margin-bottom: 10px;
+      margin-bottom: 15px;
     }
     .user { font-weight: bold; }
-    .bot { color: #ddd; }
+    .bot { color: #333; }
 
-    #userInputWrapper {
+    input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 20px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+
+    .preview-images {
       display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .preview-images img {
+      max-height: 100px;
+      cursor: pointer;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+
+    #imageModal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.8);
       align-items: center;
       justify-content: center;
-      margin-top: 20px;
     }
 
-    #userInput {
-      flex: 1;
-      padding: 10px;
-      border-radius: 5px;
-      border: 1px solid #ccc;
-      background: #111;
+    #imageModal img {
+      max-width: 90%;
+      max-height: 90%;
+    }
+
+    #closeModal {
+      position: absolute;
+      top: 20px;
+      right: 30px;
+      font-size: 30px;
       color: white;
-      font-size: 16px;
-    }
-
-    #fileUpload {
-      display: none;
-    }
-
-    #fileLabel {
-      margin-left: 10px;
       cursor: pointer;
-      font-size: 22px;
-    }
-
-    #uploadStatus {
-      text-align: center;
-      margin-top: 10px;
-      font-weight: bold;
     }
   </style>
 </head>
 <body>
   <div id="chatbox">
-    <div class="message bot">Bonjour Admin ! Pose-moi une question ou envoie-moi un document à intégrer.</div>
+    <div class="message bot">Bonjour ! Pose ta question ou envoie-moi un document méthodo.</div>
   </div>
+  <input type="text" id="userInput" placeholder="Tape ta question..." />
 
-  <div id="userInputWrapper">
-    <input type="text" id="userInput" placeholder="Tape une question ou 'Réponse:' pour m'entraîner..." />
-    <label for="fileUpload" id="fileLabel" title="Ajouter un document (PDF/DOCX)">📎</label>
-    <input type="file" id="fileUpload" accept=".pdf,.docx" />
+  <!-- Agrandissement image -->
+  <div id="imageModal" onclick="closeImage()">
+    <span id="closeModal" onclick="closeImage()">✖</span>
+    <img id="modalImg" src="" alt="Image PDF">
   </div>
-
-  <div id="uploadStatus"></div>
 
   <script>
     const chatbox = document.getElementById('chatbox');
     const input = document.getElementById('userInput');
-    const fileUpload = document.getElementById('fileUpload');
-    const statusDiv = document.getElementById('uploadStatus');
 
-    const knowledgeBase = [
-      {
-        keywords: ["annuler", "annulation", "règlement", "reglement", "reglemet", "méthodologie d'annulation", "annuler un règlement", "erreur paiement", "supprimer règlement"],
-        answer: `Voici la méthodologie pour annuler un règlement si erreur (le jour même) :\n
-1. Rendez-vous sur la vue 360 de la fiche client, cliquez sur "Fiche personne"\n
-2. Dans le bandeau de gauche, allez dans "Raccourcis" > "Compte client"\n
-3. Cliquez sur "Historique" (pensez à bien saisir la société !)\n
-4. Sélectionnez la ligne du règlement à annuler (seulement possible si la date est du jour ou J+1)\n
-5. Cliquez sur "Annuler un règlement" > Vérifiez les détails > Cliquez sur "Valider"\n
-✅ Attention : les opérations ne peuvent être annulées que le jour même ou le lendemain.\n
-📸 Des captures d’écran sont disponibles dans le document pour t’aider visuellement.`
-      }
-    ];
-
-    function addMessage(sender, text) {
+    function addMessage(sender, text, images=[]) {
       const msg = document.createElement('div');
       msg.className = `message ${sender}`;
       msg.innerText = `${sender === 'user' ? 'Vous' : 'Bot'}: ${text}`;
       chatbox.appendChild(msg);
+
+      if (images.length > 0) {
+        const imgWrapper = document.createElement('div');
+        imgWrapper.className = 'preview-images';
+        images.forEach(url => {
+          const img = document.createElement('img');
+          img.src = url;
+          img.onclick = () => showImage(url);
+          imgWrapper.appendChild(img);
+        });
+        chatbox.appendChild(imgWrapper);
+      }
+
       chatbox.scrollTop = chatbox.scrollHeight;
     }
 
-    input.addEventListener('keydown', function (e) {
+    input.addEventListener('keydown', function(e) {
       if (e.key === 'Enter') {
-        const text = input.value.trim();
-        if (!text) return;
+        const question = input.value.trim();
+        if (!question) return;
         input.value = '';
-        addMessage('user', text);
-
-        if (text.toLowerCase().startsWith("réponse:")) {
-          const lastQuestion = chatbox.querySelectorAll('.user:last-of-type');
-          fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec', {
-            method: 'POST',
-            mode: 'no-cors',
-            body: JSON.stringify({
-              question: lastQuestion?.innerText.replace("Vous: ", "") || "Inconnue",
-              answer: text.replace("réponse:", "").trim()
-            })
-          });
-          addMessage('bot', "Merci ! Réponse enregistrée. Je m'en souviendrai.");
-        } else {
-          const match = knowledgeBase.find(kb =>
-            kb.keywords.some(k => text.toLowerCase().includes(k))
-          );
-          if (match) {
-            addMessage('bot', match.answer);
-          } else {
-            addMessage('bot', "Je ne connais pas encore la réponse à cette question. Si tu la connais, écris-la comme ceci : Réponse: [ta réponse]");
-          }
-        }
+        addMessage('user', question);
+        fetchAnswer(question);
       }
     });
 
-    fileUpload.addEventListener('change', async function () {
-      const file = this.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = function (e) {
-        const base64 = e.target.result.split(',')[1];
-        fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec', {
-          method: 'POST',
-          mode: 'no-cors',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            uploadPDF: true,
-            fileName: file.name,
-            fileType: file.type,
-            fileData: base64
-          })
-        }).then(() => {
-          addMessage('bot', "✅ Fichier envoyé avec succès.");
-          statusDiv.innerText = "";
-        }).catch(() => {
-          addMessage('bot', "❌ Erreur d'envoi du document.");
+    function fetchAnswer(question) {
+      // Appelle ton Google Sheet via Apps Script
+      fetch('https://script.google.com/macros/s/AKfycbwHSjK-ye75E1CvZMavFIo0k0yO3P9KRVD0i8b9adWQ3yAbwsJnc4V8pux1YF11jZPo/exec')
+        .then(r => r.json())
+        .then(data => {
+          const row = data.reverse().find(entry =>
+            question.toLowerCase().includes(entry.question.toLowerCase())
+          );
+          if (row) {
+            const images = row.image_urls
+              ? row.image_urls.split("||").map(u => u.trim())
+              : [];
+            addMessage('bot', row.answer, images);
+          } else {
+            addMessage('bot', "Je ne connais pas encore la réponse à cette question.");
+          }
         });
-      };
-      reader.readAsDataURL(file);
-    });
+    }
+
+    function showImage(url) {
+      const modal = document.getElementById('imageModal');
+      const img = document.getElementById('modalImg');
+      img.src = url;
+      modal.style.display = 'flex';
+    }
+
+    function closeImage() {
+      document.getElementById('imageModal').style.display = 'none';
+    }
   </script>
 </body>
 </html>
